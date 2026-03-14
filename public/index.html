@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Complaint Mail Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f; --surface: #13131a; --card: #1a1a24; --border: #2a2a3a;
+    --accent: #6c63ff; --accent2: #ff6584; --text: #e8e8f0; --muted: #6b6b80;
+    --success: #4ecca3; --mono: 'DM Mono', monospace; --sans: 'Syne', sans-serif;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; overflow-x: hidden; }
+
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: linear-gradient(rgba(108,99,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(108,99,255,0.04) 1px, transparent 1px);
+    background-size: 40px 40px; pointer-events: none; z-index: 0;
+  }
+
+  .glow { position: fixed; width: 600px; height: 600px; border-radius: 50%; filter: blur(120px); pointer-events: none; z-index: 0; }
+  .glow-1 { background: rgba(108,99,255,0.12); top: -200px; left: -100px; }
+  .glow-2 { background: rgba(255,101,132,0.08); bottom: -200px; right: -100px; }
+
+  .wrapper { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  header { text-align: center; margin-bottom: 48px; animation: fadeDown 0.6s ease both; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(108,99,255,0.12); border: 1px solid rgba(108,99,255,0.3);
+    color: #a89fff; font-family: var(--mono); font-size: 11px;
+    letter-spacing: 2px; text-transform: uppercase; padding: 6px 14px; border-radius: 100px; margin-bottom: 20px;
+  }
+  .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 2s infinite; }
+
+  h1 { font-size: clamp(28px, 5vw, 48px); font-weight: 800; line-height: 1.1; letter-spacing: -1px; }
+  h1 span { color: var(--accent); }
+
+  .input-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; margin-bottom: 24px; animation: fadeUp 0.6s 0.1s ease both; }
+
+  .input-label { font-size: 11px; font-family: var(--mono); letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .input-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  textarea {
+    width: 100%; min-height: 220px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px; color: var(--text); font-family: var(--mono);
+    font-size: 13px; line-height: 1.7; resize: vertical; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(108,99,255,0.1); }
+  textarea::placeholder { color: var(--muted); }
+
+  .sample-btn { margin-top: 10px; background: none; border: none; color: var(--accent); font-family: var(--mono); font-size: 12px; cursor: pointer; padding: 4px 0; text-decoration: underline; text-underline-offset: 3px; }
+  .sample-btn:hover { opacity: 0.7; }
+
+  .analyze-btn {
+    width: 100%; margin-top: 20px; padding: 16px; background: var(--accent); color: white;
+    border: none; border-radius: 10px; font-family: var(--sans); font-size: 15px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: all 0.2s;
+  }
+  .analyze-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(108,99,255,0.4); }
+  .analyze-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; display: none; }
+
+  .error-box { background: rgba(255,101,132,0.08); border: 1px solid rgba(255,101,132,0.3); border-radius: 10px; padding: 14px 18px; color: #ff8fa3; font-family: var(--mono); font-size: 13px; display: none; margin-top: 16px; }
+
+  .results-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; display: none; }
+  .results-header { padding: 18px 28px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: rgba(108,99,255,0.05); }
+  .results-title { font-size: 11px; font-family: var(--mono); letter-spacing: 2px; text-transform: uppercase; color: var(--success); display: flex; align-items: center; gap: 8px; }
+  .results-title::before { content: '✓'; width: 18px; height: 18px; background: var(--success); color: var(--bg); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
+  .count-badge { font-family: var(--mono); font-size: 11px; background: rgba(108,99,255,0.15); border: 1px solid rgba(108,99,255,0.3); color: #a89fff; padding: 3px 10px; border-radius: 100px; }
+
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: rgba(108,99,255,0.08); }
+  th { padding: 14px 20px; text-align: left; font-family: var(--mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); font-weight: 400; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 16px 20px; font-family: var(--mono); font-size: 13px; border-bottom: 1px solid rgba(42,42,58,0.5); vertical-align: top; line-height: 1.6; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: rgba(108,99,255,0.04); }
+
+  .reg-num { font-weight: 500; color: var(--accent); }
+
+  .type-badge { display: inline-block; padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .type-student { background: rgba(78,204,163,0.1); border: 1px solid rgba(78,204,163,0.3); color: #4ecca3; }
+  .type-staff   { background: rgba(108,99,255,0.1); border: 1px solid rgba(108,99,255,0.3); color: #a89fff; }
+  .type-na      { background: rgba(107,107,128,0.1); border: 1px solid rgba(107,107,128,0.3); color: var(--muted); }
+
+  .issue-type { display: inline-block; padding: 3px 10px; border-radius: 100px; font-size: 11px; background: rgba(255,101,132,0.1); border: 1px solid rgba(255,101,132,0.3); color: #ff8fa3; white-space: nowrap; }
+  .desc-cell { color: #c0c0d0; max-width: 260px; }
+  .na { color: var(--muted); }
+
+  @keyframes fadeDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+</style>
+</head>
+<body>
+<div class="glow glow-1"></div>
+<div class="glow glow-2"></div>
+
+<div class="wrapper">
+  <header>
+    <div class="badge">AI based</div>
+    <h1> Mail <span>Analyzer</span></h1>
+  </header>
+
+  <div class="input-card">
+    <div class="input-label">Email Input</div>
+    <textarea id="emailInput" placeholder="Paste the complaint email here..."></textarea>
+    <button class="sample-btn" onclick="loadSample()">← Load sample email (3 complaints)</button>
+    <button class="analyze-btn" id="analyzeBtn" onclick="analyzeEmail()">
+      <span id="btnText">Extract Data</span>
+      <div class="spinner" id="spinner"></div>
+    </button>
+    <div class="error-box" id="errorBox"></div>
+  </div>
+
+  <div class="results-card" id="resultsCard">
+    <div class="results-header">
+      <div class="results-title">Extracted Data</div>
+      <div class="count-badge" id="countBadge">0 records</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Type</th>
+            <th>Register Number</th>
+            <th>Student Name</th>
+            <th>College Name</th>
+            <th>Department</th>
+            <th>Issue Type</th>
+            <th>Issue Description</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const SAMPLE = `Subject: Multiple Student Complaints
+
+Dear Admin,
+
+1. Ravi Kumar (Reg No: 2022506301), CSE dept, Sri Venkateswara College of Engineering — his ID card is not working and he has been denied access to the computer lab for 3 days.
+
+2. Priya Nair (2022506325), ECE dept, Anna University — fee payment was deducted from her bank but the portal still shows pending for 5 days.
+
+3. Gabriele (2022506311), Mechanical dept, PSG College of Technology — ceiling fan in Room 214, Block C hostel is non-functional for two weeks despite a maintenance request.
+
+Regards, Student Grievance Cell`;
+
+function loadSample() { document.getElementById('emailInput').value = SAMPLE; }
+
+async function analyzeEmail() {
+  const email = document.getElementById('emailInput').value.trim();
+  if (!email) { showError('Please paste a complaint email first.'); return; }
+
+  setLoading(true); hideError(); hideResults();
+
+  try {
+    const res = await fetch('/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Server error');
+    if (!data.records?.length) throw new Error('No records found in this email.');
+
+    renderTable(data.records);
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+function renderTable(records) {
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = '';
+  records.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    const type = (r.type || 'N/A').toLowerCase();
+    const typeClass = type === 'student' ? 'type-student' : type === 'staff' ? 'type-staff' : 'type-na';
+    tr.innerHTML = `
+      <td style="color:var(--muted);font-size:11px;">${String(i+1).padStart(2,'0')}</td>
+      <td><span class="type-badge ${typeClass}">${esc(r.type)}</span></td>
+      <td><span class="reg-num">${esc(r.register_number)}</span></td>
+      <td>${esc(r.name)}</td>
+      <td class="${r.college_name === 'N/A' ? 'na' : ''}">${esc(r.college_name)}</td>
+      <td class="${r.department === 'N/A' ? 'na' : ''}">${esc(r.department)}</td>
+      <td><span class="issue-type">${esc(r.issue_type)}</span></td>
+      <td class="desc-cell">${esc(r.issue_description)}</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('countBadge').textContent = `${records.length} record${records.length !== 1 ? 's' : ''}`;
+  document.getElementById('resultsCard').style.display = 'block';
+  document.getElementById('resultsCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '—'; }
+function setLoading(on) { document.getElementById('analyzeBtn').disabled = on; document.getElementById('btnText').textContent = on ? 'Analyzing...' : 'Extract Data'; document.getElementById('spinner').style.display = on ? 'block' : 'none'; }
+function showError(msg) { const b = document.getElementById('errorBox'); b.textContent = '⚠ ' + msg; b.style.display = 'block'; }
+function hideError() { document.getElementById('errorBox').style.display = 'none'; }
+function hideResults() { document.getElementById('resultsCard').style.display = 'none'; }
+</script>
+</body>
+</html>
