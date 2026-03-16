@@ -1,20 +1,23 @@
-import express from 'express';
-import cors from 'cors';
-import { GoogleGenAI } from '@google/genai';
+import express from "express";
+import cors from "cors";
+import { GoogleGenAI } from "@google/genai";
+import dotenv from "dotenv";
+
+dotenv.config(); // load environment variables
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Paste your Gemini API key here
-const ai = new GoogleGenAI({ apiKey: "AIzaSyCZo_LrZzcAHnGEkq335rfAbbRTZSwSQMU" });
+// Load API key from environment variable
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 // API route
-app.post('/analyze', async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'No email provided' });
+app.post("/analyze", async (req, res) => {
+	const { email } = req.body;
+	if (!email) return res.status(400).json({ error: "No email provided" });
 
-  const prompt = `You are an admin assistant. Extract complaint details from the email below.
+	const prompt = `You are an admin assistant. Extract complaint details from the email below.
 
 Return ONLY a valid JSON array (no markdown, no explanation, no backticks) with objects containing:
 - "type": whether the person is a "Student" or "Staff" (string, or "N/A" if not found)
@@ -30,25 +33,26 @@ One object per person. Return ONLY the JSON array, nothing else.
 Email:
 ${email}`;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-lite',
-      contents: prompt,
-    });
+	try {
+		const response = await ai.models.generateContent({
+			model: "gemini-2.5-flash-lite",
+			contents: prompt,
+		});
 
-    const raw = response.text;
-    const cleaned = raw.replace(/```json|```/g, '').trim();
-    const records = JSON.parse(cleaned);
-    res.json({ records });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+		const raw = response.text;
+		const cleaned = raw.replace(/```json|```/g, "").trim();
+		const records = JSON.parse(cleaned);
+
+		res.json({ records });
+	} catch (err) {
+		res.status(500).json({ error: err.message });
+	}
 });
 
 // Serve frontend
-app.use(express.static('public'));
+app.use(express.static("public"));
 
 const PORT = 3000;
 app.listen(PORT, () => {
-  console.log(`✅ Server running → http://localhost:${PORT}`);
+	console.log(`✅ Server running → http://localhost:${PORT}`);
 });
